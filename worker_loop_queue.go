@@ -169,7 +169,7 @@ func (wq *loopQueue) binarySearch(expiryTime time.Time) int {
 	return (r + basel + nlen) % nlen
 }
 
-//
+// 當 Pool 被 Release 後，就會觸發此方法，將所有 Worker queue 清理
 func (wq *loopQueue) reset() {
 	if wq.isEmpty() {
 		return
