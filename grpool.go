@@ -1,4 +1,4 @@
-package gpool
+package grpool
 
 import (
 	"errors"
@@ -62,9 +62,9 @@ type Logger interface {
 	Printf(format string, args ...interface{})
 }
 
-func NewDefaultPool() (defaultPool *Pool, err error) {
+func NewDefaultPool() (defaultPool *Pool) {
 	// 初始化一個預設的 Pool
-	defaultPool, err = NewPool(DefaultPoolSize)
+	defaultPool, _ = NewPool(DefaultPoolSize)
 	return
 }
 

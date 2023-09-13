@@ -1,4 +1,4 @@
-package gpool
+package grpool
 
 import (
 	"errors"
