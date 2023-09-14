@@ -19,11 +19,8 @@ type Options struct {
 	// 過期時間: 用於定時清理過期的 Worker (只要太久沒被使用的 Worker 就會被清理)，預設為 1 秒
 	ExpiryDuration time.Duration
 
-	// 是否提前申請 Worker，大量執行需求中使用
+	// 是否提前申請空間，大量執行需求中使用
 	PreAlloc bool
-
-	// 最大 Blocking 的任務數，預設為 0
-	MaxBlockingTasks int
 
 	// Nonblocking 用來阻塞任務
 	// 若設定為 true，就會返回 ErrPoolOverload 錯誤
@@ -36,7 +33,7 @@ type Options struct {
 	Logger Logger
 
 	// 若設定為 true，Worker 就不會被自動清除
-	DisablePurge bool
+	DisableClear bool
 }
 
 // 直接傳入 Options
@@ -53,21 +50,14 @@ func WithExpiryDuration(expiryDuration time.Duration) Option {
 	}
 }
 
-// 設定是否要提前創建 Worker
+// 設定是否要提前創建空間
 func WithPreAlloc(preAlloc bool) Option {
 	return func(opts *Options) {
 		opts.PreAlloc = preAlloc
 	}
 }
 
-// 當無法創建額外 Worker 時，Blocking 最大的任務數
-func WithMaxBlockingTasks(maxBlockingTasks int) Option {
-	return func(opts *Options) {
-		opts.MaxBlockingTasks = maxBlockingTasks
-	}
-}
-
-// 若為 true，代表沒有有用的 Worker
+// 若為 true，代表沒有有用的 Worker 時，會直接 ErrPoolOverload
 func WithNonblocking(nonblocking bool) Option {
 	return func(opts *Options) {
 		opts.Nonblocking = nonblocking
@@ -88,9 +78,9 @@ func WithLogger(logger Logger) Option {
 	}
 }
 
-// 是否要關閉 Purge
-func WithDisablePurge(disable bool) Option {
+// 是否要關閉 Clear
+func WithDisableClear(disable bool) Option {
 	return func(opts *Options) {
-		opts.DisablePurge = disable
+		opts.DisableClear = disable
 	}
 }

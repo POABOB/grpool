@@ -5,6 +5,13 @@ import (
 	"time"
 )
 
+type worker interface {
+	run()
+	finish()
+	getLastUpdatedTime() time.Time
+	inputFunc(func())
+}
+
 type Worker struct {
 	// 任務池
 	pool *Pool
@@ -19,9 +26,11 @@ type Worker struct {
 func (w *Worker) run() {
 	w.pool.addRunning(1)
 	go func() {
-		// worker panic 處理
+		// 回收 Pool 失敗或 worker 發生錯誤
 		defer func() {
 			w.pool.addRunning(-1)
+			// worker 放 cache 可以不用重新初始化
+			w.pool.workerCache.Put(w)
 			if p := recover(); p != nil {
 				if ph := w.pool.options.PanicHandler; ph != nil {
 					ph(p)
@@ -29,22 +38,25 @@ func (w *Worker) run() {
 					w.pool.options.Logger.Printf("worker exits from panic: %v\n%s\n", p, debug.Stack())
 				}
 			}
+			// 喚醒 Blocking 的 task
+			w.pool.cond.Signal()
 		}()
 
 		// 監聽任務列表，有任務就拿出來執行
 		for f := range w.task {
+			// 被 finish()
 			if f == nil {
 				return
 			}
+
 			// 執行任務
 			f()
 
 			// 回收worker
-			if ok := w.pool.putBackWorker(w); !ok {
+			if ok := w.pool.putWorker(w); !ok {
 				return
 			}
 		}
-
 	}()
 }
 

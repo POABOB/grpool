@@ -1,27 +1,56 @@
 package grpool
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
-// workerQueue 的實現
-type loopQueue struct {
-	items  []worker
-	expiry []worker
-	head   int
-	tail   int
-	size   int
-	isFull bool
+var (
+	// Queue 滿了
+	errQueueIsFull = errors.New("the circular queue is full")
+
+	// Queue 已經關閉了
+	errQueueIsReleased = errors.New("the circular queue length is zero")
+)
+
+type workerQueue interface {
+	len() int
+	isEmpty() bool
+	insert(worker) error
+	detach() worker
+	refresh(duration time.Duration) []worker
+	reset()
 }
 
-// 初始化 WorkerLoopQueue
-func newWorkerLoopQueue(size int) *loopQueue {
-	return &loopQueue{
-		items: make([]worker, size),
-		size:  size,
+// workerQueue 的實現
+type circularQueue struct {
+	items      []worker
+	expiry     []worker
+	head       int
+	tail       int
+	size       int
+	isFull     bool
+	isPreAlloc bool
+}
+
+// 初始化 WorkerCircularQueue
+func newWorkerCircularQueue(size int, preAlloc bool) *circularQueue {
+	if preAlloc {
+		return &circularQueue{
+			items:      make([]worker, size),
+			size:       size,
+			isPreAlloc: preAlloc,
+		}
+	}
+	return &circularQueue{
+		items:      make([]worker, 0),
+		size:       size,
+		isPreAlloc: preAlloc,
 	}
 }
 
 // 獲取 Queue 長度，因為是 Loop Queue，所以會有 head 指標 > tail 指標的情況很正常
-func (wq *loopQueue) len() int {
+func (wq *circularQueue) len() int {
 	// size == 0 || 頭尾一樣卻沒滿
 	if wq.size == 0 || wq.isEmpty() {
 		return 0
@@ -40,12 +69,12 @@ func (wq *loopQueue) len() int {
 }
 
 // 判斷 Queue 是否為空
-func (wq *loopQueue) isEmpty() bool {
+func (wq *circularQueue) isEmpty() bool {
 	return wq.head == wq.tail && !wq.isFull
 }
 
 // 插入一個 worker 進入 Queue
-func (wq *loopQueue) insert(w worker) error {
+func (wq *circularQueue) insert(w worker) error {
 	// Pool 已經被關閉
 	if wq.size == 0 {
 		return errQueueIsReleased
@@ -57,13 +86,15 @@ func (wq *loopQueue) insert(w worker) error {
 	}
 
 	// 增加 Worker
-	wq.items[wq.tail] = w
-	wq.tail++
-
-	// 如果 tail == size，讓 tail 變 0
-	if wq.tail == wq.size {
-		wq.tail = 0
+	// 如果
+	if !wq.isPreAlloc && cap(wq.items) < wq.size {
+		wq.items = append(wq.items, w)
+	} else {
+		wq.items[wq.tail] = w
 	}
+	// 如果 tail == size，讓 tail 變 0
+	wq.tail = (wq.tail + 1) % wq.size
+
 	// 如果 tail == head 代表滿了
 	if wq.tail == wq.head {
 		wq.isFull = true
@@ -73,7 +104,7 @@ func (wq *loopQueue) insert(w worker) error {
 }
 
 // 從 Queue 獲取一個 worker
-func (wq *loopQueue) detach() worker {
+func (wq *circularQueue) detach() worker {
 	if wq.isEmpty() {
 		return nil
 	}
@@ -81,18 +112,16 @@ func (wq *loopQueue) detach() worker {
 	// 獲取一個 Worker
 	w := wq.items[wq.head]
 	wq.items[wq.head] = nil // 避免記憶體溢出
-	wq.head++
 	// 如果 head == size，讓 head 變 0
-	if wq.head == wq.size {
-		wq.head = 0
-	}
+	wq.head = (wq.head + 1) % wq.size
+
 	wq.isFull = false
 
 	return w
 }
 
 // 重新整理 Queue，用於清理過期的 worker
-func (wq *loopQueue) refresh(duration time.Duration) []worker {
+func (wq *circularQueue) refresh(duration time.Duration) []worker {
 	expiryTime := time.Now().Add(-duration)
 	// 獲取過期 worker 的 index
 	index := wq.binarySearch(expiryTime)
@@ -132,7 +161,7 @@ func (wq *loopQueue) refresh(duration time.Duration) []worker {
 }
 
 // 二元搜尋，找出過期的 worker
-func (wq *loopQueue) binarySearch(expiryTime time.Time) int {
+func (wq *circularQueue) binarySearch(expiryTime time.Time) int {
 	var mid, nlen, basel, tmid int
 	nlen = len(wq.items)
 
@@ -170,7 +199,7 @@ func (wq *loopQueue) binarySearch(expiryTime time.Time) int {
 }
 
 // 當 Pool 被 Release 後，就會觸發此方法，將所有 Worker queue 清理
-func (wq *loopQueue) reset() {
+func (wq *circularQueue) reset() {
 	if wq.isEmpty() {
 		return
 	}
@@ -190,4 +219,5 @@ func (wq *loopQueue) reset() {
 	wq.head = 0
 	wq.tail = 0
 	wq.isFull = false
+	wq.isPreAlloc = false
 }

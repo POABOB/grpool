@@ -27,7 +27,6 @@ const (
 // 定義各種錯誤
 var (
 	ErrLackPoolFunc        = errors.New("must provide func for pool")
-	ErrInvalidPoolSize     = errors.New("invalid pool size")
 	ErrInvalidPoolExpiry   = errors.New("invalid pool expiry")
 	ErrPoolClosed          = errors.New("pool has been closed")
 	ErrPoolOverload        = errors.New("too many goroutines blocked or Nonblocking is set")
@@ -49,12 +48,7 @@ var (
 		// since otherwise the sender might be dragged down if the receiver is CPU-bound.
 		return 1
 	}()
-
-	// 預設的 Pool
-	defaultPool *Pool
 )
-
-const nowTimeUpdateInterval = 500 * time.Millisecond
 
 // Logger is used for logging formatted messages.
 type Logger interface {
@@ -62,43 +56,8 @@ type Logger interface {
 	Printf(format string, args ...interface{})
 }
 
+// 初始化一個預設的 Pool
 func NewDefaultPool() (defaultPool *Pool) {
-	// 初始化一個預設的 Pool
 	defaultPool, _ = NewPool(DefaultPoolSize)
 	return
-}
-
-// 提交任務至 Goroutine Pool
-func Schedule(task func()) error {
-	return defaultPool.Schedule(task)
-}
-
-// 獲取目前正在執行的 Worker 數量
-func Running() int {
-	return defaultPool.Running()
-}
-
-// 獲取目前 Pool 的最大容量
-func Cap() int {
-	return defaultPool.Cap()
-}
-
-// 獲取有空的 Worker 數量
-func Free() int {
-	return defaultPool.Free()
-}
-
-// 關閉 Pool
-func Release() {
-	defaultPool.Release()
-}
-
-// 關閉 Pool 但是會有一個超時限制去等待 Workers 都關閉
-func ReleaseWithTimeout(timeout time.Duration) error {
-	return defaultPool.ReleaseWithTimeout(timeout)
-}
-
-// 重啟 Pool
-func Reboot() {
-	defaultPool.Reboot()
 }
