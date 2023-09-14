@@ -14,9 +14,6 @@ type Pool struct {
 	// 正在執行的goroutine
 	running int32
 
-	// Blocking 的 task 數
-	waiting int32
-
 	// 閒置的Workers
 	workers workerQueue
 
@@ -151,18 +148,9 @@ func (p *Pool) Free() int {
 	return c - p.Running()
 }
 
-// Waiting returns the number of tasks which are waiting be executed.
-func (p *Pool) Waiting() int {
-	return int(atomic.LoadInt32(&p.waiting))
-}
-
 // 獲取正在執行的 Worker 數量
 func (p *Pool) Running() int {
 	return int(atomic.LoadInt32(&p.running))
-}
-
-func (p *Pool) addWaiting(delta int) {
-	atomic.AddInt32(&p.waiting, int32(delta))
 }
 
 func (p *Pool) addRunning(delta int) {
@@ -235,10 +223,8 @@ func (p *Pool) getWorker() (w worker) {
 		}
 
 		for {
-			p.addWaiting(1)
 			// 阻塞等待
 			p.cond.Wait()
-			p.addWaiting(-1)
 
 			if p.IsClosed() {
 				p.lock.Unlock()
