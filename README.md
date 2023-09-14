@@ -120,3 +120,8 @@ pool, err := grpool.NewPool(1000, grpool.WithPanicHandler(ph))
 ```go
 pool, err := grpool.NewPool(1000, grpool.WithExpiryDuration(time.Second * 5))
 ```
+
+
+## License
+
+[MIT License](https://github.com/POABOB/grpool/blob/main/LICENSE)
