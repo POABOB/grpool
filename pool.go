@@ -2,8 +2,6 @@ package grpool
 
 import (
 	"context"
-	"log"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -53,11 +51,6 @@ func NewPool(size int, options ...Option) (*Pool, error) {
 		} else if expiry == 0 {
 			opts.ExpiryDuration = DefaultCleanIntervalTime
 		}
-	}
-
-	// 如果沒有自訂義Logger
-	if opts.Logger == nil {
-		opts.Logger = Logger(log.New(os.Stderr, "[Error]: ", log.LstdFlags|log.Lmsgprefix|log.Lmicroseconds))
 	}
 
 	// 如果 size 不是一個有效的 Size 就使用 DefaultPoolSize

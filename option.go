@@ -29,9 +29,6 @@ type Options struct {
 	// 用來處理 worker panic 發生的事件
 	PanicHandler func(interface{})
 
-	// 自訂義 Logger
-	Logger Logger
-
 	// 若設定為 true，Worker 就不會被自動清除
 	DisableClear bool
 }
@@ -68,13 +65,6 @@ func WithNonblocking(nonblocking bool) Option {
 func WithPanicHandler(panicHandler func(interface{})) Option {
 	return func(opts *Options) {
 		opts.PanicHandler = panicHandler
-	}
-}
-
-// 自訂義 Logger
-func WithLogger(logger Logger) Option {
-	return func(opts *Options) {
-		opts.Logger = logger
 	}
 }
 

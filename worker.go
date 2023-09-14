@@ -1,6 +1,7 @@
 package grpool
 
 import (
+	"fmt"
 	"runtime/debug"
 	"time"
 )
@@ -35,7 +36,7 @@ func (w *Worker) run() {
 				if ph := w.pool.options.PanicHandler; ph != nil {
 					ph(p)
 				} else {
-					w.pool.options.Logger.Printf("worker exits from panic: %v\n%s\n", p, debug.Stack())
+					fmt.Printf("worker exited from panic: %v\n%s\n", p, debug.Stack())
 				}
 			}
 			// 喚醒 Blocking 的 task

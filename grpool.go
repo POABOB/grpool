@@ -50,12 +50,6 @@ var (
 	}()
 )
 
-// Logger is used for logging formatted messages.
-type Logger interface {
-	// Printf must have the same semantics as log.Printf.
-	Printf(format string, args ...interface{})
-}
-
 // 初始化一個預設的 Pool
 func NewDefaultPool() (defaultPool *Pool) {
 	defaultPool, _ = NewPool(DefaultPoolSize)
