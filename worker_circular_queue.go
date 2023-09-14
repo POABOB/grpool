@@ -43,7 +43,7 @@ func newWorkerCircularQueue(size int, preAlloc bool) *circularQueue {
 		}
 	}
 	return &circularQueue{
-		items:      make([]worker, 0),
+		items:      make([]worker, 0, size),
 		size:       size,
 		isPreAlloc: preAlloc,
 	}
@@ -87,7 +87,7 @@ func (wq *circularQueue) insert(w worker) error {
 
 	// 增加 Worker
 	// 如果
-	if !wq.isPreAlloc && cap(wq.items) < wq.size {
+	if !wq.isPreAlloc && cap(wq.items) <= wq.size {
 		wq.items = append(wq.items, w)
 	} else {
 		wq.items[wq.tail] = w
