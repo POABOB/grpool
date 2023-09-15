@@ -1,5 +1,10 @@
 # grpool
 
+<a title="Build Status" target="_blank" href="https://github.com/POABOB/grpool/actions?query=workflow%3AGo"><img src="https://img.shields.io/github/actions/workflow/status/POABOB/grpool/go.yaml?branch=main&style=flat-square&logo=github-actions" /></a>
+<a title="Release" target="_blank" href="https://github.com/POABOB/grpool/releases"><img src="https://img.shields.io/github/v/release/POABOB/grpool.svg?color=166823&style=flat-square&logo=smartthings" /></a>
+<a title="Go Report Card" target="_blank" href="https://goreportcard.com/report/github.com/POABOB/grpool"><img src="https://goreportcard.com/badge/github.com/POABOB/grpool?style=flat-square" /></a>
+
+
 ## Introduction
 
 `grpool` is a groutine pool which can provide a fixed size of capacity, recycle the stale workers. 
