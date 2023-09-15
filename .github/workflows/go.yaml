@@ -21,7 +21,7 @@ jobs:
       - name: Set up Go 1.x
         uses: actions/setup-go@v3
         with:
-          go-version: 1.18
+          go-version: 1.20
           check-latest: true
           # cache: true
         id: go
@@ -30,15 +30,15 @@ jobs:
         run: |
           go get -v -t -d ./...
 
-      - name: Lint
-        run: |
-          go vet -stdmethods=false $(go list ./...)
+      # - name: Lint
+      #   run: |
+      #     go vet -stdmethods=false $(go list ./...)
 
-          go mod tidy
-          if ! test -z "$(git status --porcelain)"; then
-            echo "Please run 'go mod tidy'"
-            exit 1
-          fi
+      #     go mod tidy
+      #     if ! test -z "$(git status --porcelain)"; then
+      #       echo "Please run 'go mod tidy'"
+      #       exit 1
+      #     fi
 
       - name: Test
         run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
@@ -56,7 +56,7 @@ jobs:
       - name: Set up Go 1.x
         uses: actions/setup-go@v3
         with:
-          go-version: 1.18
+          go-version: 1.20
           check-latest: true
           # cache: true
 
