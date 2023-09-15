@@ -249,7 +249,7 @@ func (p *Pool) getWorker() (w worker) {
 func (p *Pool) putWorker(worker *Worker) bool {
 	// 避免 Worker 超出 Pool 容量，或是 Pool 已關閉
 	cap := p.Cap()
-	if (cap > 0 && p.Running() > cap) || p.IsClosed() {
+	if cap > 0 && p.Running() > cap || p.IsClosed() {
 		p.cond.Broadcast()
 		return false
 	}
