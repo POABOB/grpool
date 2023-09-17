@@ -103,19 +103,18 @@ func (p *Pool) ClearStaleWorkers(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-		}
+			if p.IsClosed() {
+				break
+			}
 
-		if p.IsClosed() {
-			break
-		}
+			p.lock.Lock()
+			staleWorkers := p.workers.refresh(p.options.ExpiryDuration)
+			p.lock.Unlock()
 
-		p.lock.Lock()
-		staleWorkers := p.workers.refresh(p.options.ExpiryDuration)
-		p.lock.Unlock()
-
-		for i := range staleWorkers {
-			staleWorkers[i].finish()
-			staleWorkers[i] = nil
+			for i := range staleWorkers {
+				staleWorkers[i].finish()
+				staleWorkers[i] = nil
+			}
 		}
 	}
 }
@@ -205,44 +204,33 @@ func (p *Pool) getWorker() (w worker) {
 
 	// 加鎖
 	p.lock.Lock()
+retry:
 	if w = p.workers.detach(); w != nil {
 		p.lock.Unlock()
 		return
 	}
 
 	if cap := p.Cap(); cap > p.Running() {
-		// if the worker queue is empty and we don't run out of the pool capacity,
-		// then just spawn a new worker goroutine.
 		p.lock.Unlock()
 		// 當前無可用worker，但是Pool沒有滿
 		genWorker()
-	} else { // otherwise, we'll have to keep them blocked and wait for at least one worker to be put back into pool.
-		if p.options.Nonblocking {
-			p.lock.Unlock()
-			return
-		}
-
-		for {
-			// 阻塞等待
-			p.cond.Wait()
-
-			if p.IsClosed() {
-				p.lock.Unlock()
-				return
-			}
-
-			if w = p.workers.detach(); w != nil {
-				p.lock.Unlock()
-				return
-			} else if w == nil && p.Free() > 0 {
-				p.lock.Unlock()
-				genWorker()
-				return
-			}
-		}
+		return
 	}
 
-	return
+	if p.options.Nonblocking {
+		p.lock.Unlock()
+		return
+	}
+
+	// 阻塞等待
+	p.cond.Wait()
+
+	if p.IsClosed() {
+		p.lock.Unlock()
+		return
+	}
+
+	goto retry
 }
 
 // 將 Worker 放回 Pool
