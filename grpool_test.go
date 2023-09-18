@@ -123,8 +123,13 @@ func TestGrPoolWithNewDefaultPool(t *testing.T) {
 
 func TestGrPoolWithDefaultWorkersNumber(t *testing.T) {
 	p, _ := NewPool(-1)
-	defer p.Release()
 
+	for i := 0; i < size; i++ {
+		_ = p.Schedule(demoFunc)
+	}
+	p.Release()
+	p.Reboot()
+	defer p.Release()
 	for i := 0; i < size; i++ {
 		_ = p.Schedule(demoFunc)
 	}
@@ -135,8 +140,7 @@ func TestGrPoolWithDefaultWorkersNumber(t *testing.T) {
 	t.Logf("memory usage:%d MB", curMem)
 }
 
-// TestGrPoolWithNewDefaultPool is used to test with the default settings.
-func TestGrPoolWithDefaultWorkersNumberAndPanicHandler(t *testing.T) {
+func TestGrPoolWithPanicHandler(t *testing.T) {
 	ph := func(v interface{}) {
 		// dosomething...
 		fmt.Printf("[panic occurred]: %v\n", v)
@@ -157,6 +161,52 @@ func TestGrPoolWithDefaultWorkersNumberAndPanicHandler(t *testing.T) {
 
 func TestGrPoolWithDisableClear(t *testing.T) {
 	p, _ := NewPool(size, WithDisableClear(true))
+	defer p.Release()
+
+	for i := 0; i < size; i++ {
+		_ = p.Schedule(demoFunc)
+	}
+
+	t.Logf("pool, running workers number:%d", p.Running())
+	mem := runtime.MemStats{}
+	runtime.ReadMemStats(&mem)
+	curMem = mem.TotalAlloc/MiB - curMem
+	t.Logf("memory usage:%d MB", curMem)
+}
+
+func TestGrPoolWithNonblocking(t *testing.T) {
+	p, _ := NewPool(size, WithNonblocking(true))
+	defer p.Release()
+
+	for i := 0; i < size; i++ {
+		_ = p.Schedule(demoFunc)
+	}
+
+	t.Logf("pool, running workers number:%d", p.Running())
+	t.Logf("pool, free workers number:%d", p.Free())
+	mem := runtime.MemStats{}
+	runtime.ReadMemStats(&mem)
+	curMem = mem.TotalAlloc/MiB - curMem
+	t.Logf("memory usage:%d MB", curMem)
+}
+
+func TestGrPoolWithExpiryDuration(t *testing.T) {
+	p, _ := NewPool(size, WithExpiryDuration(time.Second*5))
+	defer p.Release()
+
+	for i := 0; i < size; i++ {
+		_ = p.Schedule(demoFunc)
+	}
+
+	t.Logf("pool, running workers number:%d", p.Running())
+	mem := runtime.MemStats{}
+	runtime.ReadMemStats(&mem)
+	curMem = mem.TotalAlloc/MiB - curMem
+	t.Logf("memory usage:%d MB", curMem)
+}
+
+func TestGrPoolWithOptions(t *testing.T) {
+	p, _ := NewPool(size, WithOptions(Options{Nonblocking: true}))
 	defer p.Release()
 
 	for i := 0; i < size; i++ {

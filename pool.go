@@ -181,7 +181,11 @@ func (p *Pool) Release() {
 func (p *Pool) Reboot() {
 	if atomic.CompareAndSwapInt32(&p.state, CLOSED, OPENED) {
 		// 重新啟用 Worker Queue
-		p.workers = newWorkerCircularQueue(int(p.capacity), p.options.PreAlloc)
+		size := int(p.capacity)
+		if size == -1 {
+			size = DefaultPoolSize
+		}
+		p.workers = newWorkerCircularQueue(size, p.options.PreAlloc)
 
 		atomic.StoreInt32(&p.clearDone, 0)
 		p.goClear()
@@ -195,13 +199,7 @@ func (p *Pool) IsClosed() bool {
 
 func (p *Pool) getWorker() (w worker) {
 	genWorker := func() {
-		if w = p.workerCache.Get().(*Worker); w == nil {
-			// 新開一個worker
-			w = &Worker{
-				pool: p,
-				task: make(chan func(), workerChanCap),
-			}
-		}
+		w = p.workerCache.Get().(*Worker)
 		w.run()
 	}
 
