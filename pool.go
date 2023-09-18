@@ -181,11 +181,11 @@ func (p *Pool) Release() {
 func (p *Pool) Reboot() {
 	if atomic.CompareAndSwapInt32(&p.state, CLOSED, OPENED) {
 		// 重新啟用 Worker Queue
-		size := int(p.capacity)
-		if size == -1 {
-			size = DefaultPoolSize
-		}
-		p.workers = newWorkerCircularQueue(size, p.options.PreAlloc)
+		// size := int(p.capacity)
+		// if size == -1 {
+		// 	size = DefaultPoolSize
+		// }
+		// p.workers = newWorkerCircularQueue(size, p.options.PreAlloc)
 
 		atomic.StoreInt32(&p.clearDone, 0)
 		p.goClear()
