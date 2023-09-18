@@ -52,7 +52,7 @@ func NewPool(size int, options ...Option) (*Pool, error) {
 
 	// 如果 size 不是一個有效的 Size 就使用 DefaultPoolSize
 	if size <= 0 {
-		size = DefaultPoolSize
+		size = -1
 	}
 
 	// init
@@ -70,6 +70,9 @@ func NewPool(size int, options ...Option) (*Pool, error) {
 
 	p.cond = sync.NewCond(&p.lock)
 
+	if size == -1 {
+		size = DefaultPoolSize
+	}
 	p.workers = newWorkerCircularQueue(size, p.options.PreAlloc)
 
 	// 定期清理過期的worker，節省系統資源
@@ -210,7 +213,7 @@ retry:
 		return
 	}
 
-	if cap := p.Cap(); cap > p.Running() {
+	if cap := p.Cap(); cap == -1 || cap > p.Running() {
 		p.lock.Unlock()
 		// 當前無可用worker，但是Pool沒有滿
 		genWorker()

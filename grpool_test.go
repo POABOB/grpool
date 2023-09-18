@@ -1,6 +1,7 @@
 package grpool
 
 import (
+	"fmt"
 	"runtime"
 	"sync"
 	"testing"
@@ -21,6 +22,10 @@ var curMem uint64
 func demoPoolFunc(args interface{}) {
 	n := args.(int)
 	time.Sleep(time.Duration(n) * time.Millisecond)
+}
+
+func demoPoolFuncWithPanic() {
+	panic("error")
 }
 
 // TestGrPoolWaitToGetWorker is used to test waiting to get worker.
@@ -93,6 +98,72 @@ func TestNoPool(t *testing.T) {
 	}
 
 	wg.Wait()
+	mem := runtime.MemStats{}
+	runtime.ReadMemStats(&mem)
+	curMem = mem.TotalAlloc/MiB - curMem
+	t.Logf("memory usage:%d MB", curMem)
+}
+
+// TestGrPoolWithNewDefaultPool is used to test with the default settings.
+func TestGrPoolWithNewDefaultPool(t *testing.T) {
+	p := NewDefaultPool()
+	defer p.Release()
+
+	for i := 0; i < size; i++ {
+		_ = p.Schedule(demoFunc)
+	}
+	time.Sleep(2 * DefaultCleanIntervalTime)
+	_ = p.Schedule(demoFunc)
+	t.Logf("pool, running workers number:%d", p.Running())
+	mem := runtime.MemStats{}
+	runtime.ReadMemStats(&mem)
+	curMem = mem.TotalAlloc/MiB - curMem
+	t.Logf("memory usage:%d MB", curMem)
+}
+
+func TestGrPoolWithDefaultWorkersNumber(t *testing.T) {
+	p, _ := NewPool(-1)
+	defer p.Release()
+
+	for i := 0; i < size; i++ {
+		_ = p.Schedule(demoFunc)
+	}
+	t.Logf("pool, running workers number:%d", p.Running())
+	mem := runtime.MemStats{}
+	runtime.ReadMemStats(&mem)
+	curMem = mem.TotalAlloc/MiB - curMem
+	t.Logf("memory usage:%d MB", curMem)
+}
+
+// TestGrPoolWithNewDefaultPool is used to test with the default settings.
+func TestGrPoolWithDefaultWorkersNumberAndPanicHandler(t *testing.T) {
+	ph := func(v interface{}) {
+		// dosomething...
+		fmt.Printf("[panic occurred]: %v\n", v)
+	}
+	p, _ := NewPool(size, WithPanicHandler(ph))
+	defer p.Release()
+
+	for i := 0; i < 5; i++ {
+		_ = p.Schedule(demoPoolFuncWithPanic)
+	}
+
+	t.Logf("pool, running workers number:%d", p.Running())
+	mem := runtime.MemStats{}
+	runtime.ReadMemStats(&mem)
+	curMem = mem.TotalAlloc/MiB - curMem
+	t.Logf("memory usage:%d MB", curMem)
+}
+
+func TestGrPoolWithDisableClear(t *testing.T) {
+	p, _ := NewPool(size, WithDisableClear(true))
+	defer p.Release()
+
+	for i := 0; i < size; i++ {
+		_ = p.Schedule(demoFunc)
+	}
+
+	t.Logf("pool, running workers number:%d", p.Running())
 	mem := runtime.MemStats{}
 	runtime.ReadMemStats(&mem)
 	curMem = mem.TotalAlloc/MiB - curMem

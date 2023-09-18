@@ -2,14 +2,13 @@ package grpool
 
 import (
 	"errors"
-	"math"
 	"runtime"
 	"time"
 )
 
 const (
 	// 預設 Pool 最大容量
-	DefaultPoolSize = math.MaxInt32
+	DefaultPoolSize = 10_000_000
 
 	// 預設每 1 秒清理一次 Pool
 	DefaultCleanIntervalTime = time.Second
