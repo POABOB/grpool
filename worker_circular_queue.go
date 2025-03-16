@@ -86,7 +86,6 @@ func (wq *circularQueue) insert(w worker) error {
 	}
 
 	// 增加 Worker
-	// 如果
 	if !wq.isPreAlloc && cap(wq.items) <= wq.size {
 		wq.items = append(wq.items, w)
 	} else {
@@ -204,7 +203,7 @@ func (wq *circularQueue) reset() {
 		return
 	}
 
-	// 逐一把
+	// 逐一完成任務
 	for {
 		if w := wq.detach(); w != nil {
 			w.finish()
@@ -215,7 +214,6 @@ func (wq *circularQueue) reset() {
 
 	wq.items = wq.items[:0]
 	wq.expiry = wq.expiry[:0]
-	wq.size = 0
 	wq.head = 0
 	wq.tail = 0
 	wq.isFull = false

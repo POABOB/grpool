@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	runTimes    = 100_000_000
+	runTimes    = 1_000_000
 	poolSize    = 100_000
 	expiredTime = 10 * time.Second
 )
@@ -18,6 +18,7 @@ func demoFunc() {
 
 func BenchmarkGoroutines(b *testing.B) {
 	var wg sync.WaitGroup
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		wg.Add(runTimes)
 		for j := 0; j < runTimes; j++ {
@@ -26,18 +27,22 @@ func BenchmarkGoroutines(b *testing.B) {
 				wg.Done()
 			}()
 		}
-		wg.Wait()
 	}
+	wg.Wait()
 }
 
 func BenchmarkGrpoolThroughput(b *testing.B) {
-	p, _ := NewPool(poolSize, WithExpiryDuration(expiredTime))
+	var wg sync.WaitGroup
+	p, _ := NewPool(poolSize, WithExpiryDuration(expiredTime), WithPreAlloc(true))
 	defer p.Release()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		wg.Add(runTimes)
 		for j := 0; j < runTimes; j++ {
 			_ = p.Schedule(demoFunc)
+			wg.Done()
 		}
 	}
+	wg.Wait()
 }

@@ -2,6 +2,7 @@ package grpool
 
 import (
 	"context"
+	syncx "github.com/POABOB/grpool/sync"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -21,12 +22,12 @@ type Pool struct {
 	state int32
 
 	// 鎖
-	lock sync.Mutex
+	lock sync.Locker
 
-	// worker 等待的鎖
+	// 條件變數
 	cond *sync.Cond
 
-	// 回收使用過的Worker
+	// 回收使用過的Worker Pool
 	workerCache sync.Pool
 
 	// Clear 是否完成
@@ -58,6 +59,7 @@ func NewPool(size int, options ...Option) (*Pool, error) {
 	// init
 	p := &Pool{
 		capacity: int32(size),
+		lock:     syncx.NewSpinLock(),
 		options:  opts,
 	}
 
@@ -68,7 +70,7 @@ func NewPool(size int, options ...Option) (*Pool, error) {
 		}
 	}
 
-	p.cond = sync.NewCond(&p.lock)
+	p.cond = sync.NewCond(p.lock)
 
 	if size == -1 {
 		size = DefaultPoolSize
@@ -180,13 +182,6 @@ func (p *Pool) Release() {
 // 重啟一個可以使用的 Pool
 func (p *Pool) Reboot() {
 	if atomic.CompareAndSwapInt32(&p.state, CLOSED, OPENED) {
-		// 重新啟用 Worker Queue
-		// size := int(p.capacity)
-		// if size == -1 {
-		// 	size = DefaultPoolSize
-		// }
-		// p.workers = newWorkerCircularQueue(size, p.options.PreAlloc)
-
 		atomic.StoreInt32(&p.clearDone, 0)
 		p.goClear()
 	}
@@ -198,26 +193,21 @@ func (p *Pool) IsClosed() bool {
 }
 
 func (p *Pool) getWorker() (w worker) {
-	genWorker := func() {
-		w = p.workerCache.Get().(*Worker)
-		w.run()
-	}
-
 	// 加鎖
 	p.lock.Lock()
 retry:
+
 	if w = p.workers.detach(); w != nil {
 		p.lock.Unlock()
 		return
 	}
-
 	if cap := p.Cap(); cap == -1 || cap > p.Running() {
 		p.lock.Unlock()
 		// 當前無可用worker，但是Pool沒有滿
-		genWorker()
+		w = p.workerCache.Get().(*Worker)
+		w.run()
 		return
 	}
-
 	if p.options.Nonblocking {
 		p.lock.Unlock()
 		return
@@ -237,8 +227,8 @@ retry:
 // 將 Worker 放回 Pool
 func (p *Pool) putWorker(worker *Worker) bool {
 	// 避免 Worker 超出 Pool 容量，或是 Pool 已關閉
-	cap := p.Cap()
-	if cap > 0 && p.Running() > cap || p.IsClosed() {
+	capacity := p.Cap()
+	if capacity > 0 && p.Running() > capacity || p.IsClosed() {
 		p.cond.Broadcast()
 		return false
 	}
@@ -247,17 +237,20 @@ func (p *Pool) putWorker(worker *Worker) bool {
 	worker.lastUpdatedTime = time.Now()
 
 	p.lock.Lock()
-	defer p.lock.Unlock()
+
 	// 避免記憶體溢出
 	if p.IsClosed() {
+		p.lock.Unlock()
 		return false
 	}
 
 	if err := p.workers.insert(worker); err != nil {
+		p.lock.Unlock()
 		return false
 	}
 
 	// 把 Blocking 等待 worker 的 task 喚醒
 	p.cond.Signal()
+	p.lock.Unlock()
 	return true
 }
